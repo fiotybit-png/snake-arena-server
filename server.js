@@ -10,6 +10,9 @@ const SIM_HZ = 60;
 const SEND_HZ = 20;
 const VIEW_W = 1800, VIEW_H = 1200; // metade da área visível enviada a cada jogador
 const IDLE_KICK_S = 120; // desconecta quem fica 2 min sem enviar nada
+// Ranking geral (top 5 da tela inicial). Sem SCORE_SECRET o ranking fica desligado.
+const SCORE_URL = process.env.SCORE_URL || "https://snake.talisjoga.com/api/public/scores";
+const SCORE_SECRET = process.env.SCORE_SECRET || "";
 
 const rooms = new Map(); // id -> { id, game, clients:Set }
 let nextRoom = 1;
@@ -27,6 +30,18 @@ function pickRoom() {
     if (r.clients.size < MAX_PLAYERS && (!best || r.clients.size > best.clients.size)) best = r;
   }
   return best ?? createRoom();
+}
+
+// ---------- ranking geral ----------
+function submitScore(s) {
+  if (!SCORE_SECRET || !s || s.bot || !(s.score > 0)) return;
+  fetch(SCORE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-score-secret": SCORE_SECRET },
+    body: JSON.stringify({ name: s.name, score: Math.round(s.score), kills: s.kills, maxMass: Math.round(s.maxMass) }),
+    signal: AbortSignal.timeout(8000),
+  }).then((r) => { if (!r.ok) console.log(`[ranking] recusado: ${r.status}`); })
+    .catch((e) => console.log(`[ranking] falhou: ${e.message}`));
 }
 
 // ---------- validação ----------
@@ -110,6 +125,7 @@ wss.on("connection", (ws) => {
     const r = client.room;
     if (!r) return;
     r.clients.delete(client);
+    if (client.snake?.alive) submitScore(client.snake); // saiu no meio da partida
     if (client.snake) client.snake.alive = false; // some do mapa
     console.log(`[sala ${r.id}] saiu ${client.name} (${r.clients.size}/${MAX_PLAYERS})`);
     if (r.clients.size === 0 && rooms.size > 1) { rooms.delete(r.id); console.log(`[sala ${r.id}] fechada`); }
@@ -183,6 +199,7 @@ setInterval(() => {
         if (c.snake && c.snake.id === e.victim && !c.deathSent) {
           c.deathSent = true;
           const s = c.snake;
+          submitScore(s);
           c.ws.readyState === 1 && c.ws.send(JSON.stringify({
             t: "dead", score: s.score, kills: s.kills, maxMass: Math.round(s.maxMass),
             time: Math.round(s.diedAt - s.bornAt), killer: e.killer,

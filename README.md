@@ -17,3 +17,5 @@ Servidor que roda as salas da Snake Arena: até 30 jogadores por sala, bots comp
 ## Configurações opcionais (Environment)
 
 - `MAX_PLAYERS`: jogadores humanos por sala (padrão 30).
+- `SCORE_SECRET`: senha do ranking geral (Top 5 da tela inicial). Precisa ser **igual** à salva no Lovable. Sem ela, o ranking não recebe pontos.
+- `SCORE_URL`: endereço que recebe os pontos (padrão `https://snake.talisjoga.com/api/public/scores`).
