@@ -1,5 +1,7 @@
-app = "snake-arena-br"
+app = "snake-arena-server"
 primary_region = "gru"
+kill_signal = "SIGINT"
+kill_timeout = 10
 
 [build]
 

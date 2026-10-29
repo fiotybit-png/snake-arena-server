@@ -29,8 +29,13 @@ const BOT_NAMES = [
 export function radiusOf(mass) {
   return Math.min(8 + Math.sqrt(mass) * 0.55, 30);
 }
+// Cobras muito grandes crescem mais devagar e têm um limite de tamanho,
+// para o jogo não travar quando alguém fica gigante.
+const MAX_SEGS = 500;
 function segCountOf(mass) {
-  return Math.floor(8 + mass * 0.9);
+  const base = 8 + mass * 0.9;
+  if (base <= 250) return Math.floor(base);
+  return Math.floor(Math.min(MAX_SEGS, 250 + (base - 250) * 0.4));
 }
 function angleDiff(a, b) {
   let d = b - a;
@@ -272,6 +277,7 @@ export class Game {
       }
     }
     while (this.foods.length < FOOD_COUNT) this.foods.push(this.randFood());
+    if (this.foods.length > FOOD_COUNT * 2) this.foods.splice(0, this.foods.length - FOOD_COUNT * 2);
 
     const CELL = 80;
     const grid = new Map();

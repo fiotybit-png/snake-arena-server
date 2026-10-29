@@ -34,8 +34,8 @@ function pickRoom() {
 
 // ---------- ranking geral ----------
 function submitScore(s) {
-  if (!SCORE_SECRET || !s || s.bot || !(s.score > 0)) return;
-  fetch(SCORE_URL, {
+  if (!SCORE_SECRET || !s || s.bot || !(s.score > 0)) return Promise.resolve();
+  return fetch(SCORE_URL, {
     method: "POST",
     headers: { "content-type": "application/json", "x-score-secret": SCORE_SECRET },
     body: JSON.stringify({ name: s.name, score: Math.round(s.score), kills: s.kills, maxMass: Math.round(s.maxMass) }),
@@ -125,7 +125,7 @@ wss.on("connection", (ws) => {
     const r = client.room;
     if (!r) return;
     r.clients.delete(client);
-    if (client.snake?.alive) submitScore(client.snake); // saiu no meio da partida
+    if (client.snake?.alive && !client.deathSent) { client.deathSent = true; submitScore(client.snake); } // saiu no meio da partida
     if (client.snake) client.snake.alive = false; // some do mapa
     console.log(`[sala ${r.id}] saiu ${client.name} (${r.clients.size}/${MAX_PLAYERS})`);
     if (r.clients.size === 0 && rooms.size > 1) { rooms.delete(r.id); console.log(`[sala ${r.id}] fechada`); }
@@ -186,7 +186,7 @@ setInterval(() => {
   last = now;
   sendAcc += dt;
   const sendNow = sendAcc >= 1 / SEND_HZ;
-  if (sendNow) { sendAcc = 0; sendN++; }
+  if (sendNow) { sendAcc = Math.min(sendAcc - 1 / SEND_HZ, 1 / SEND_HZ); sendN++; }
 
   for (const room of rooms.values()) {
     const g = room.game;
@@ -229,6 +229,22 @@ setInterval(() => {
     if (now - c.lastMsg > IDLE_KICK_S * 1000) c.ws.terminate();
   }
 }, 10000);
+
+// ao desligar/atualizar o servidor, salva no ranking quem ainda estava jogando
+let shuttingDown = false;
+function shutdown(sig) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[servidor] desligando (${sig}), salvando pontos...`);
+  const jobs = [];
+  for (const r of rooms.values()) for (const c of r.clients) {
+    if (c.snake?.alive && !c.deathSent) { c.deathSent = true; jobs.push(submitScore(c.snake)); }
+  }
+  Promise.allSettled(jobs).finally(() => process.exit(0));
+  setTimeout(() => process.exit(0), 6000).unref();
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 createRoom();
 server.listen(PORT, () => console.log(`Snake Arena servidor na porta ${PORT}`));
