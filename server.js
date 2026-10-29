@@ -168,6 +168,7 @@ function snapshotFor(client, room, lb, withFood) {
 
   return {
     t: "state",
+    st: Math.round(g.time * 1000), // hora do jogo (ms): o navegador usa para deixar o movimento liso
     me: me ? { id: me.id, alive: me.alive, score: me.score, kills: me.kills, mass: Math.round(me.mass), shield: me.shield } : null,
     rank: me?.alive ? lb.findIndex((s) => s.id === me.id) + 1 : 0,
     total: lb.length,
