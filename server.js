@@ -6,8 +6,8 @@ import { Game, leaderboard, WORLD_R, PALETTE, PATTERNS } from "./engine.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_PLAYERS = Number(process.env.MAX_PLAYERS) || 30; // humanos por sala
-const SIM_HZ = 60;
-const SEND_HZ = 20;
+const SIM_HZ = 30; // 30 passos por segundo: metade do esforço, o navegador deixa liso
+const SEND_HZ = 15;
 const VIEW_W = 1800, VIEW_H = 1200; // metade da área visível enviada a cada jogador
 const IDLE_KICK_S = 120; // desconecta quem fica 2 min sem enviar nada
 // Ranking geral (top 5 da tela inicial). Sem SCORE_SECRET o ranking fica desligado.
@@ -215,7 +215,7 @@ setInterval(() => {
 
     if (sendNow && room.clients.size) {
       const lb = leaderboard(g);
-      const withFood = sendN % 4 === 0; // comida vai 5x por segundo
+      const withFood = sendN % 3 === 0; // comida vai 5x por segundo
       for (const c of room.clients) {
         if (c.ws.readyState === 1 && c.ws.bufferedAmount < 512 * 1024) c.ws.send(JSON.stringify(snapshotFor(c, room, lb, withFood)));
       }
